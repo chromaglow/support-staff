@@ -1,1 +1,25 @@
-/* filled in Task 9 */
+/* Support Staff additions. Uses upstream's --bg / --accent so the buttons match. */
+#sfd-send { margin-left: 6px; }
+#sfd-settings-btn { margin-left: 4px; padding-inline: 10px; }
+
+.sfd-toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+  background: var(--bg, #14161a); color: #e8e8e8; border: 1px solid var(--accent, #4da3ff);
+  border-radius: 8px; padding: 10px 14px; font: 14px system-ui, sans-serif; z-index: 1000;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .5); max-width: 80vw;
+}
+.sfd-link { background: none; border: none; color: var(--accent, #4da3ff); cursor: pointer; font: inherit; text-decoration: underline; }
+
+.sfd-dialog {
+  background: var(--bg, #14161a); color: #e8e8e8; border: 1px solid #333; border-radius: 10px;
+  padding: 20px 24px; min-width: 520px; max-width: 90vw; font: 14px system-ui, sans-serif;
+}
+.sfd-dialog::backdrop { background: rgba(0, 0, 0, .6); }
+.sfd-dialog h2 { margin: 0 0 14px; font-size: 18px; }
+.sfd-dialog label { display: block; margin: 10px 0 4px; }
+.sfd-row { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+.sfd-row input[type="text"] { flex: 1; background: #0e1013; color: #e8e8e8; border: 1px solid #333; border-radius: 6px; padding: 6px 8px; font: inherit; }
+.sfd-actions { justify-content: flex-end; margin-top: 18px; }
+.sfd-meta { color: #888; font-size: 12px; margin: 12px 0 0; word-break: break-all; }
+.sfd-err { color: #ff7a7a; min-height: 1.2em; margin: 8px 0 0; }
+.sfd-dialog ul { margin: 8px 0; padding-left: 20px; }

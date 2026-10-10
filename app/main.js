@@ -114,6 +114,21 @@ function createWindow() {
   });
   if (w.maximized) win.maximize();
   win.once('ready-to-show', () => win.show());
+  // A huge model can pin the renderer (upstream issue 215). Offer a reload rather than
+  // leaving a frozen window with no way out but the menu.
+  win.on('unresponsive', async () => {
+    log.warn('renderer unresponsive');
+    const { response } = await dialog.showMessageBox(win, {
+      type: 'warning', title: 'Support Staff', message: 'The page is not responding.',
+      detail: 'A large model can take a while. Wait, or reload the page (the loaded part is lost).',
+      buttons: ['Wait', 'Reload'], defaultId: 0, cancelId: 0,
+    });
+    if (response === 1) {
+      // A hung renderer cannot act on reload(); kill it first, then load fresh.
+      win.webContents.forcefullyCrashRenderer();
+      win.webContents.reload();
+    }
+  });
   win.webContents.setWindowOpenHandler(({ url }) => { openExternal(url); return { action: 'deny' }; });
   win.webContents.on('will-navigate', (e, url) => {
     if (!url.startsWith(`${ORIGIN}/`)) {

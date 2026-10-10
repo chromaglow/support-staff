@@ -41,6 +41,12 @@ function detectBambu({ exists = fs.existsSync, query = regQuery, candidates: lis
 /**
  * Open `file` in Bambu Studio, detached so closing this app leaves the slicer running.
  * Resolves with the pid once the process has started; rejects if it cannot start.
+ *
+ * This is the only route that works for a local file. The bambustudio:// URL handler
+ * is Bambu's MakerWorld download hook and refuses local paths ("not from a trusted
+ * site"); `--single-instance <file>` exits without loading anything. Both were tested
+ * against Bambu Studio 2.8.2: docs/research/2026-10-findings.md, section 5. With
+ * Bambu's "Single instance" preference off, each launch is a new Bambu window.
  */
 function launchBambu(exe, file) {
   return new Promise((resolve, reject) => {

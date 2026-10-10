@@ -51,3 +51,10 @@ Reviewed 2026-10-10: 17 open issues (`gh issue list --repo gittrahan/support-fin
 
 ## 5. Bambu Studio launch behavior
 (filled in Task 11)
+
+## 6. CSP adjustments
+No directive was changed; the policy is exactly the one in the plan (`default-src 'self'`, no remote origin, `script-src 'self'` plus a sha256 hash for the inline import map).
+
+One fix to how the hash is computed (`cspFor` in `app/main.js`): the upstream submodule stores `web/index.html` with LF, but this Windows checkout has `core.autocrlf=true`, so the file on disk is CRLF. The HTML parser normalizes CRLF to LF before hashing an inline script, so Chromium expected `sha256-D2Xnio...` while main.js, hashing the raw bytes, sent `sha256-aN2+71...`. Symptom: "Executing inline script violates the following Content Security Policy directive", then "Failed to resolve module specifier three" because the import map never applied; the page rendered its static HTML but `app.js` could not load. Fix: normalize `\r\n` to `\n` in the import-map text before hashing. The same hash now comes out on LF and CRLF checkouts, and in a packaged build whatever the line endings of the copied file.
+
+Expected, not an adjustment: opening the Plugins menu logs two console errors ("Connecting to https://api.github.com/... violates ... connect-src 'self'" and "Fetch API cannot load ..."); upstream catches the failed fetch and shows its fallback labels.

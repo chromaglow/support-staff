@@ -9,6 +9,11 @@ is the Electron shell, the Send to Bambu button, settings, tests and packaging.
 
 ## Use
 
+**Quickest start from this checkout:** double-click `start.cmd` (it runs `npm install` on
+first use, then opens the app). For an installed app with a Start-menu entry, run
+`dist\Support Staff Setup 0.1.0.exe` after `npm run dist`, or use the portable
+`dist\Support Staff 0.1.0.exe` with no install at all.
+
 Download `Support Staff Setup 0.1.0.exe` (installer) or `Support Staff 0.1.0.exe`
 (portable) from the latest green run's `windows-build` artifact on the
 [Actions page](https://github.com/chromaglow/support-staff/actions), or build it with

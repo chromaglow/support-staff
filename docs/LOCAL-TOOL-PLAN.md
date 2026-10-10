@@ -1,5 +1,7 @@
 # Plan: running Support Fins as a local tool
 
+> **Note (2026-10-10):** this is the first survey, written before the design. It is kept as the record of what the upstream repo looked like on day one. The design that was actually built is `docs/specs/2026-10-10-support-fins-desktop-design.md`; current state is in `docs/HANDOFF.md`.
+
 Written 2026-10-10 against a fresh clone of github.com/gittrahan/support-fins on Windows 11
 (Node 24.13, Deno 2.7.6, Python 3.13, Docker 29.4 all present; esbuild not installed).
 

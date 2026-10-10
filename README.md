@@ -47,12 +47,18 @@ To smoke-test a packaged build: `SUPPORT_STAFF_EXE="dist/win-unpacked/Support St
 Point it at the real binary (win-unpacked or the installed exe), not the portable exe,
 which is a self-extracting wrapper Playwright cannot attach to.
 
-Upstream's suite on Windows: one STEP test fails for a Deno module-detection reason,
-and the path fix is pending upstream in
-[gittrahan/support-fins#228](https://github.com/gittrahan/support-fins/pull/228)
-(our duplicate [#230](https://github.com/gittrahan/support-fins/pull/230)). CI runs that
-suite on Linux, where it is green.
+Upstream's suite runs green on Windows at the pinned commit (449 passed): the path fix we
+contributed, [gittrahan/support-fins#230](https://github.com/gittrahan/support-fins/pull/230),
+and the maintainer's STEP-test follow-up, [#228](https://github.com/gittrahan/support-fins/pull/228),
+are both merged. CI runs that suite on Linux.
 
+## Status and handoff
+
+v1 is built, reviewed and green in CI as of 2026-10-10. What is pending (the manual print
+gate, the real-parts survey, the later restyle) and every decision that is not obvious
+from the code are in [docs/HANDOFF.md](docs/HANDOFF.md). Start there when resuming.
+
+- Handoff: [docs/HANDOFF.md](docs/HANDOFF.md)
 - Design: [docs/specs/2026-10-10-support-fins-desktop-design.md](docs/specs/2026-10-10-support-fins-desktop-design.md)
 - Plan: [docs/plans/2026-10-10-support-fins-desktop.md](docs/plans/2026-10-10-support-fins-desktop.md)
 - Research findings: [docs/research/2026-10-findings.md](docs/research/2026-10-findings.md)

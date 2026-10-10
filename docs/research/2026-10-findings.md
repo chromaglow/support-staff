@@ -1,6 +1,8 @@
 # Research findings, 2026-10
 
-**Verdict: GO (provisional).** Section 3 is still pending; nothing found so far blocks the build.
+**Verdict: GO.** v1 is built, reviewed and green in CI (2026-10-10). Section 3 (real parts) is deferred to the next session, and the v1 print gate is Ezra's; see `docs/HANDOFF.md`.
+
+**Update, 2026-10-10 evening:** both upstream PRs merged (#230 at 18:35 UTC, then #228 at 18:41 UTC). The submodule was bumped to `da413e5`; `npm run test:upstream` on this Windows machine now gives 449 passed, 0 failed, 1 ignored. Section 1 below is kept as the record of the state before that.
 
 ## 1. Upstream tests on Windows
 - Before: `deno test --allow-read tests/` gave 189 passed / 75 failed / 1 ignored, all from `URL.pathname` (a reviewer measured 189 passed / 129 failed / 1 ignored with `deno test -A` at the parent commit). After the fix: `deno test -A tests/` gives 342 passed / 1 failed / 1 ignored. The one failure is `tests/step.test.js`: on Deno 2.7.6 Windows, `createRequire()` of the vendored UMD `occt-import-js.js` returns an empty ESM namespace (Deno CJS detection), unrelated to paths; it passes with `--unstable-detect-cjs`. Upstream main's own Ubuntu CI is green; PR #230's CI run was never triggered (action_required). `plugins/cli/tests/`: 10 passed. `plugins/shared/tests/`: 84 passed.
@@ -39,8 +41,8 @@ Run: `node scripts/survey.js upstream/prototype/stress/models --rot 40,0,0` (Nod
 Unrotated sphere: 4 walls, 18 tines (smoke-test fixture). The stress models are all small (largest file torus.stl, 102 KB); the slowest runs were plate.stl and ramp.stl at 0.4 s, torus.stl at 0.2 s. The times include Node startup and the 3MF write.
 
 ## 3. Engine on real parts
-no real parts supplied; stress models only. The user will supply a folder later; rerun `node scripts/survey.js <folder>`.
-Slicer check: pending.
+Deferred to the next session by Ezra (2026-10-10): no real parts supplied yet; stress models only. When a folder is available, run `node scripts/survey.js "<folder>"`, paste the table here, then open two of the output 3MFs in Bambu Studio by hand and record the orientation check and the "geometry only" notice.
+Slicer check: pending with the above.
 
 ## 4. Open upstream issues that affect daily use
 Reviewed 2026-10-10: 17 open issues (`gh issue list --repo gittrahan/support-fins --state open`).
@@ -80,7 +82,7 @@ So: not one instance reused, no prompt in the running instance; a second `bambu-
 Why: `src/slic3r/GUI/InstanceCheck.cpp` (`instance_check`) only looks for a running instance when `single_instance` is on in the app config or `--single-instance` is on the command line; otherwise it logs "Another instance not found or single-instance not set" and starts normally. With the preference on, it would find the window by class `wxWindowNR` + title containing "BambuStudio", send the arguments via `WM_COPYDATA`, and exit, and `OtherInstanceMessageHandler::handle_message` loads the paths into the running instance. That is the user's preference, not ours to set.
 
 ### Alternatives tested and rejected
-- `bambustudio://open?file=<url-encoded local path>` (what Step 3 of the plan would have switched to; the handler in `HKCR\bambustudio\shell\open\command` is the same exe with `"%1"`). It is the MakerWorld download hook: `GUI_App::post_init` strips `file=`, URL-decodes it, and checks the host against a trusted-site table; a local path fails that and a public build shows the "This file is not from a trusted site, do you want to open it anyway?" message dialog (observed as `#32770` "Bambu Studio info"). Observed with a direct `Start-Process` of the URL: a new instance (pid 193488) started, showed that dialog, and ended as `Untitled - BambuStudio` with nothing loaded. It also coincided with the exit of the user's pre-existing instance (pid 16868) ~25 s after the launch: no crash dump, no event-log entry, and the source has no code that terminates another instance; the most likely explanation is that someone at the desk closed it, but this is unverified. Not usable for local files.
+- `bambustudio://open?file=<url-encoded local path>` (what Step 3 of the plan would have switched to; the handler in `HKCR\bambustudio\shell\open\command` is the same exe with `"%1"`). It is the MakerWorld download hook: `GUI_App::post_init` strips `file=`, URL-decodes it, and checks the host against a trusted-site table; a local path fails that and a public build shows the "This file is not from a trusted site, do you want to open it anyway?" message dialog (observed as `#32770` "Bambu Studio info"). Observed with a direct `Start-Process` of the URL: a new instance (pid 193488) started, showed that dialog, and ended as `Untitled - BambuStudio` with nothing loaded. It also coincided with the exit of the user's pre-existing instance (pid 16868) ~25 s after the launch: no crash dump, no event-log entry, and the source has no code that terminates another instance; the most likely explanation is that someone at the desk closed it. Ezra confirmed afterwards (2026-10-10) that nothing was lost from that project. Not usable for local files.
 - `bambu-studio.exe --single-instance <file>` (the flag `instance_check` honors regardless of the preference). Observed with the `sphere-fins` instance running: the new process exited within 5 s and the running instance was unchanged after 60 s (title, window position, plate thumbnail; it was not maximized or brought to the foreground, which `EnumWindowsProc` does on a hash match). The file was silently dropped. Not usable.
 
 ### Also confirmed in passing

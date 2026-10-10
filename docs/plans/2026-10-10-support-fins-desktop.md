@@ -10,6 +10,8 @@
 
 **Spec:** `docs/specs/2026-10-10-support-fins-desktop-design.md`. Read it first.
 
+**Status (2026-10-10):** Tasks 1-14 done, reviewed and pushed; Task 15 (manual print gate) pending with Ezra. Checkboxes below reflect that. See `docs/HANDOFF.md`.
+
 **Repo:** `C:\dev\GitHub\support staff`, remote `https://github.com/chromaglow/support-staff`, branch `main`. The submodule `upstream/` points at `https://github.com/gittrahan/support-fins`. Work on `main` directly; commit after every task; push at the end of each phase.
 
 ---
@@ -56,7 +58,7 @@ paths used for file reads go through `fileURLToPath` from `node:url` (Deno suppo
 - Modify: `upstream/tests/sway.test.js:16`
 - Modify: `upstream/plugins/cli/tests/cli.test.js:254`
 
-- [ ] **Step 1: Confirm the failure on this machine**
+- [x] **Step 1: Confirm the failure on this machine**
 
 Run (from the repo root):
 ```bash
@@ -64,7 +66,7 @@ cd upstream && deno test --allow-read tests/ 2>&1 | tail -3
 ```
 Expected: `FAILED | 189 passed | 75 failed` and errors mentioning `readfile '/C:/dev/GitHub/support%20staff/...`.
 
-- [ ] **Step 2: Fork upstream and branch inside the submodule**
+- [x] **Step 2: Fork upstream and branch inside the submodule**
 
 ```bash
 gh repo fork gittrahan/support-fins --clone=false
@@ -73,7 +75,7 @@ git remote add fork https://github.com/chromaglow/support-fins
 git checkout -b fix/windows-test-paths
 ```
 
-- [ ] **Step 3: Edit `tests/_util.js` lines 5-6**
+- [x] **Step 3: Edit `tests/_util.js` lines 5-6**
 
 Replace:
 ```js
@@ -90,7 +92,7 @@ export const WEB = new URL('../web/', import.meta.url).href;
 export const MODELS = fileURLToPath(new URL('../prototype/stress/models/', import.meta.url));
 ```
 
-- [ ] **Step 4: Edit `tests/golden.test.js` line 24**
+- [x] **Step 4: Edit `tests/golden.test.js` line 24**
 
 Replace `const DIR = new URL('./golden/', import.meta.url).pathname;` with:
 ```js
@@ -99,7 +101,7 @@ const DIR = fileURLToPath(new URL('./golden/', import.meta.url));
 ```
 (Put the `import` line with the file's other imports at the top.)
 
-- [ ] **Step 5: Edit `tests/raster.test.js` line 9**
+- [x] **Step 5: Edit `tests/raster.test.js` line 9**
 
 Replace `const FIXTURES = new URL('./fixtures/', import.meta.url).pathname;   // gen_curved.py` with:
 ```js
@@ -107,7 +109,7 @@ import { fileURLToPath } from 'node:url';
 const FIXTURES = fileURLToPath(new URL('./fixtures/', import.meta.url));   // gen_curved.py
 ```
 
-- [ ] **Step 6: Edit `tests/step.test.js` lines 21-22**
+- [x] **Step 6: Edit `tests/step.test.js` lines 21-22**
 
 `OCCT` is passed to `createRequire(...)()` and `Deno.readFileSync`, both of which need a
 filesystem path, so it cannot be built from `WEB` (now a URL). Replace:
@@ -122,7 +124,7 @@ const FIX = fileURLToPath(new URL('./fixtures/', import.meta.url));
 const OCCT = fileURLToPath(new URL('../web/vendor/occt-import-js-0.0.23/', import.meta.url));
 ```
 
-- [ ] **Step 7: Edit `tests/sway.test.js` line 16**
+- [x] **Step 7: Edit `tests/sway.test.js` line 16**
 
 Replace `const WEB = new URL('../web/', import.meta.url).pathname;` with:
 ```js
@@ -130,7 +132,7 @@ const WEB = new URL('../web/', import.meta.url).href;
 ```
 (`WEB` here is only used in `import()`.)
 
-- [ ] **Step 8: Edit `plugins/cli/tests/cli.test.js` line 254**
+- [x] **Step 8: Edit `plugins/cli/tests/cli.test.js` line 254**
 
 Replace `new URL('../../shared/py/', import.meta.url).pathname, JSON.stringify(samples)],` with:
 ```js
@@ -138,7 +140,7 @@ Replace `new URL('../../shared/py/', import.meta.url).pathname, JSON.stringify(s
 ```
 and add `import { fileURLToPath } from 'node:url';` with the file's other imports.
 
-- [ ] **Step 9: Run the suites**
+- [x] **Step 9: Run the suites**
 
 ```bash
 deno test --allow-read tests/ 2>&1 | tail -2
@@ -147,7 +149,7 @@ deno test --allow-read plugins/shared/tests/ 2>&1 | tail -2
 ```
 Expected: each ends with `ok | N passed | 0 failed` (tests/ shows `264 passed | 0 failed | 1 ignored`).
 
-- [ ] **Step 10: Commit, push to the fork, open the PR**
+- [x] **Step 10: Commit, push to the fork, open the PR**
 
 ```bash
 git add tests/_util.js tests/golden.test.js tests/raster.test.js tests/step.test.js tests/sway.test.js plugins/cli/tests/cli.test.js
@@ -162,7 +164,7 @@ gh pr create --repo gittrahan/support-fins --head chromaglow:fix/windows-test-pa
   --body "On Windows, URL.pathname yields '/C:/dir%20with%20space/...', so 75 of 265 tests fail reading models and fixtures. This keeps import() specifiers as URLs and converts disk paths with fileURLToPath (Deno supports node:url). No engine changes. All suites green on Windows 11 / Deno 2.7.6 and unchanged on Linux."
 ```
 
-- [ ] **Step 11: Return the submodule to upstream main**
+- [x] **Step 11: Return the submodule to upstream main**
 
 The wrapper repo keeps pointing at upstream `main`, not the fork branch. From the repo root:
 ```bash
@@ -177,7 +179,7 @@ Expected: no change to the `upstream` entry (`git status` is clean for it). Reco
 - Create: `scripts/survey.js`
 - Create: `docs/research/2026-10-findings.md`
 
-- [ ] **Step 1: Write the survey script**
+- [x] **Step 1: Write the survey script**
 
 ```js
 #!/usr/bin/env node
@@ -225,7 +227,7 @@ for (const f of files) {
 console.error(`outputs in ${outDir}`);
 ```
 
-- [ ] **Step 2: Run it on the five stress models**
+- [x] **Step 2: Run it on the five stress models**
 
 ```bash
 node scripts/survey.js upstream/prototype/stress/models/lbracket.stl upstream/prototype/stress/models/cube.stl upstream/prototype/stress/models/staircase.stl upstream/prototype/stress/models/torus.stl upstream/prototype/stress/models/needle.stl --rot 40,0,0
@@ -233,7 +235,7 @@ node scripts/survey.js upstream/prototype/stress/models/sphere.stl
 ```
 Expected: a table with numbers in every row and no ERROR rows. `sphere.stl` unrotated gives 4 walls and 18 tines (that is the smoke test's fixture; confirm it here).
 
-- [ ] **Step 3: Run it on the user's real parts**
+- [x] **Step 3: Run it on the user's real parts**
 
 Ask the user for a folder of their own STL/3MF files. If none is provided, write
 "no real parts supplied; stress models only" in the findings and continue.
@@ -243,7 +245,7 @@ node scripts/survey.js "<the folder>"
 Open two of the output 3MFs in Bambu Studio or OrcaSlicer by hand and confirm the
 part imports oriented and seated, with the "geometry only" notice.
 
-- [ ] **Step 4: Write the findings file**
+- [x] **Step 4: Write the findings file**
 
 Create `docs/research/2026-10-findings.md` with this structure, filled from the runs above:
 ```markdown
@@ -271,7 +273,7 @@ Slicer check: <which files opened, in which slicer, what the notice said>
 (filled in Task 11)
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add scripts/survey.js docs/research/2026-10-findings.md
@@ -280,7 +282,7 @@ git commit -m "research: survey script and first findings"
 
 ### Task 3: Read the open issues
 
-- [ ] **Step 1: List and read**
+- [x] **Step 1: List and read**
 
 ```bash
 gh issue list --repo gittrahan/support-fins --state open --limit 50
@@ -288,7 +290,7 @@ gh issue view 215 --repo gittrahan/support-fins --comments | head -80
 gh issue view 157 --repo gittrahan/support-fins --comments | head -80
 ```
 
-- [ ] **Step 2: Fill section 4 of the findings file and commit**
+- [x] **Step 2: Fill section 4 of the findings file and commit**
 
 ```bash
 git add docs/research/2026-10-findings.md
@@ -309,7 +311,7 @@ git push
 - Create: `scripts/stamp-upstream.js`
 - Modify: `.gitignore`
 
-- [ ] **Step 1: package.json**
+- [x] **Step 1: package.json**
 
 ```json
 {
@@ -337,7 +339,7 @@ git push
 }
 ```
 
-- [ ] **Step 2: Install**
+- [x] **Step 2: Install**
 
 ```bash
 npm install
@@ -354,7 +356,7 @@ test-results/
 Thumbs.db
 ```
 
-- [ ] **Step 3: Stamp script**
+- [x] **Step 3: Stamp script**
 
 `scripts/stamp-upstream.js`:
 ```js
@@ -375,7 +377,7 @@ console.log(`upstream ${commit}`);
 ```
 Run `npm run stamp`. Expected: prints `upstream 8ada90d498ee` (or the current pin) and the JSON file exists.
 
-- [ ] **Step 4: Failing test for log.js**
+- [x] **Step 4: Failing test for log.js**
 
 `test/unit/log.test.js`:
 ```js
@@ -409,7 +411,7 @@ test('rotates to .1 when the file passes MAX', () => {
 ```
 Run: `node --test test/unit/log.test.js`. Expected: FAIL, `Cannot find module '../../app/log'`.
 
-- [ ] **Step 5: log.js**
+- [x] **Step 5: log.js**
 
 ```js
 // Rolling log file: one line per entry, rotated once past MAX bytes.
@@ -441,7 +443,7 @@ module.exports = { createLogger, MAX };
 ```
 Run: `node --test test/unit/log.test.js`. Expected: 2 passed.
 
-- [ ] **Step 6: Failing test for files.js**
+- [x] **Step 6: Failing test for files.js**
 
 `test/unit/files.test.js`:
 ```js
@@ -482,7 +484,7 @@ test('writeAtomic writes via a .part file and leaves no .part behind', async () 
 ```
 Run: `node --test test/unit/files.test.js`. Expected: FAIL, module not found.
 
-- [ ] **Step 7: files.js**
+- [x] **Step 7: files.js**
 
 ```js
 // Filenames and writes for the output folder. Pure except writeAtomic.
@@ -521,7 +523,7 @@ module.exports = { safeBase, uniquePath, writeAtomic };
 ```
 Run: `node --test test/unit/files.test.js`. Expected: 4 passed.
 
-- [ ] **Step 8: Failing test for settings.js**
+- [x] **Step 8: Failing test for settings.js**
 
 `test/unit/settings.test.js`:
 ```js
@@ -578,7 +580,7 @@ test('save writes the merged settings and returns them', () => {
 ```
 Run: `node --test test/unit/settings.test.js`. Expected: FAIL, module not found.
 
-- [ ] **Step 9: settings.js**
+- [x] **Step 9: settings.js**
 
 ```js
 // settings.json in the user data folder. Pure functions; main passes the paths.
@@ -633,7 +635,7 @@ module.exports = { defaults, load, validate, save };
 ```
 Run: `npm run test:unit`. Expected: all tests in three files pass.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add package.json package-lock.json .gitignore app/log.js app/files.js app/settings.js scripts/stamp-upstream.js test/unit/
@@ -646,7 +648,7 @@ git commit -m "feat: scaffold, log/files/settings modules with unit tests"
 - Create: `app/bambu.js`
 - Create: `test/unit/bambu.test.js`
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```js
 const { test } = require('node:test');
@@ -674,7 +676,7 @@ test('detectBambu tries candidates, then App Paths, then the URL handler', () =>
 ```
 Run: `node --test test/unit/bambu.test.js`. Expected: FAIL, module not found.
 
-- [ ] **Step 2: bambu.js**
+- [x] **Step 2: bambu.js**
 
 ```js
 // Find Bambu Studio on this machine and open a file in it.
@@ -727,7 +729,7 @@ module.exports = { candidates, exeFromCommand, regQuery, detectBambu, launchBamb
 ```
 Run: `node --test test/unit/bambu.test.js`. Expected: 2 passed.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add app/bambu.js test/unit/bambu.test.js
@@ -742,7 +744,7 @@ git commit -m "feat: Bambu Studio detection and detached launch"
 - Create: `app/desktop.js`, `app/desktop.css` (empty placeholders so the injected tags resolve; filled in Task 9)
 - Create: `playwright.config.js`, `test/smoke.spec.js` (first assertion only)
 
-- [ ] **Step 1: Failing smoke test, first assertion**
+- [x] **Step 1: Failing smoke test, first assertion**
 
 `playwright.config.js`:
 ```js
@@ -790,14 +792,14 @@ test('the upstream app loads under app://', async () => {
 ```
 Run: `npx playwright test`. Expected: FAIL (no `app/main.js`).
 
-- [ ] **Step 2: Placeholders so the injected tags resolve**
+- [x] **Step 2: Placeholders so the injected tags resolve**
 
 `app/desktop.css`: empty file. `app/desktop.js`: `// filled in Task 9`. `app/preload.js`:
 ```js
 // filled in Task 8
 ```
 
-- [ ] **Step 3: main.js, first version**
+- [x] **Step 3: main.js, first version**
 
 ```js
 // Support Staff main process. Serves upstream/web/ over app://, never edits it.
@@ -923,15 +925,15 @@ app.on('window-all-closed', () => app.quit());
 ```
 (`dialog`, `ipcMain`, `Menu`, `session`, `safeBase`, `uniquePath`, `writeAtomic`, `detectBambu`, `launchBambu` are used from Task 7 on.)
 
-- [ ] **Step 4: Run the smoke test**
+- [x] **Step 4: Run the smoke test**
 
 Run: `npm run test:smoke`. Expected: 1 passed. If the window shows a blank page, run `npm run dev` and read the DevTools console: a CSP violation names the directive to adjust. Record any adjustment in `docs/research/2026-10-findings.md` under a new "CSP adjustments" heading. The expected set needs none.
 
-- [ ] **Step 5: Manual check of upstream behavior under the scheme**
+- [x] **Step 5: Manual check of upstream behavior under the scheme**
 
 Run `npm run dev`. Import `upstream/prototype/stress/models/sphere.stl`, click Add fins, open Export and pick 3MF (a browser download dialog appears; cancel it, Task 7 wires it). Import `upstream/tests/fixtures/bracket.step` to prove the WASM worker loads. Click the Ko-fi link in the welcome text: it must open in the system browser, not the window.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app/main.js app/preload.js app/desktop.js app/desktop.css playwright.config.js test/smoke.spec.js
@@ -943,7 +945,7 @@ git commit -m "feat: Electron shell serving upstream over app:// with CSP and ex
 **Files:**
 - Modify: `app/main.js`
 
-- [ ] **Step 1: Add the download handler and menu**
+- [x] **Step 1: Add the download handler and menu**
 
 In `main.js`, add after `createWindow`:
 ```js
@@ -991,11 +993,11 @@ And in `app.whenReady`, after `protocol.handle('app', serve);`:
   Menu.setApplicationMenu(buildMenu());
 ```
 
-- [ ] **Step 2: Manual check**
+- [x] **Step 2: Manual check**
 
 `npm run dev`, import `sphere.stl`, Add fins, Export, 3MF. Expected: a native save dialog opens in `Documents\Support Fins` (created on first save) with `sphere-fins.3mf` prefilled. Save. The log file under `%APPDATA%\support-staff\logs\` has an `export completed` line. Ctrl+, does nothing yet (Task 9 wires it).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add app/main.js
@@ -1008,7 +1010,7 @@ git commit -m "feat: native save dialog for upstream exports; app menu with Abou
 - Modify: `app/main.js`
 - Modify: `app/preload.js`
 
-- [ ] **Step 1: IPC handlers in main.js**
+- [x] **Step 1: IPC handlers in main.js**
 
 Add after `buildMenu`:
 ```js
@@ -1087,7 +1089,7 @@ In `app.whenReady`, after loading settings and before `protocol.handle`:
   wireIpc();
 ```
 
-- [ ] **Step 2: preload.js**
+- [x] **Step 2: preload.js**
 
 ```js
 // The only door between the page and the main process. Every call resolves to
@@ -1110,11 +1112,11 @@ contextBridge.exposeInMainWorld('supportFinsDesktop', {
 });
 ```
 
-- [ ] **Step 3: Check from DevTools**
+- [x] **Step 3: Check from DevTools**
 
 `npm run dev`, open the console, run `await supportFinsDesktop.getSettings()`. Expected: `{ ok: true, settings: {...}, upstreamCommit: '8ada90d498ee', logFile: '...' }`. Run `await supportFinsDesktop.setSettings({ outputFolder: 'nope' })`. Expected: `{ ok: false, error: 'outputFolder must be an absolute path' }`, and the log file has an ERROR line.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add app/main.js app/preload.js
@@ -1127,7 +1129,7 @@ git commit -m "feat: IPC bridge: save and open in Bambu, settings, dialogs, logg
 - Create (replace placeholder): `app/desktop.js`
 - Create (replace placeholder): `app/desktop.css`
 
-- [ ] **Step 1: desktop.js**
+- [x] **Step 1: desktop.js**
 
 ```js
 // Support Staff renderer shim. The app:// handler injects this after upstream's own
@@ -1282,7 +1284,7 @@ function mount(mods, missing) {
 })();
 ```
 
-- [ ] **Step 2: desktop.css**
+- [x] **Step 2: desktop.css**
 
 ```css
 /* Support Staff additions. Uses upstream's --bg / --accent so the buttons match. */
@@ -1312,11 +1314,11 @@ function mount(mods, missing) {
 .sfd-dialog ul { margin: 8px 0; padding-left: 20px; }
 ```
 
-- [ ] **Step 3: Manual check**
+- [x] **Step 3: Manual check**
 
 `npm run dev`. Expected: "Send to Bambu" (disabled) and a gear sit right of Export. Import `sphere.stl`, Add fins: Send to Bambu enables within half a second. Click it: a toast reports the save, and Bambu Studio opens the file if installed (otherwise the toast offers Settings). Ctrl+, opens the settings dialog; Detect fills the Bambu path on a machine that has it; Save with a relative path shows the validation error in red.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add app/desktop.js app/desktop.css
@@ -1329,7 +1331,7 @@ git commit -m "feat: Send to Bambu button, settings dialog, toast, startup expor
 - Create: `test/fixtures/fake-bambu/record-argv.cjs`
 - Modify: `test/smoke.spec.js`
 
-- [ ] **Step 1: The fake Bambu**
+- [x] **Step 1: The fake Bambu**
 
 The settings validator requires an existing `.exe`, so the test points `bambuExe` at
 `node.exe` itself and uses `NODE_OPTIONS=--require` to make that node process record
@@ -1347,7 +1349,7 @@ if (!process.versions.electron && /\.3mf$/i.test(process.argv[1] || '')) {
 }
 ```
 
-- [ ] **Step 2: Extend the smoke test**
+- [x] **Step 2: Extend the smoke test**
 
 Replace `launchApp` and add the second test in `test/smoke.spec.js`:
 ```js
@@ -1408,7 +1410,7 @@ let _tmp0;
 const tmp0 = () => (_tmp0 ??= fs.mkdtempSync(path.join(os.tmpdir(), 'support-staff-out-')));
 ```
 
-- [ ] **Step 3: Run**
+- [x] **Step 3: Run**
 
 ```bash
 npm run test:smoke
@@ -1417,7 +1419,7 @@ Expected: 2 passed, the second in under 30 s. If the argv assertion fails but th
 exists, read the app log in the test's userData folder: the `launched ...` line shows
 what was spawned.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add test/
@@ -1427,11 +1429,11 @@ git push
 
 ### Task 11: Research item 4: Bambu Studio already running
 
-- [ ] **Step 1: Try it**
+- [x] **Step 1: Try it**
 
 With Bambu Studio open and a project loaded, run `npm run dev`, import `sphere.stl`, Add fins, Send to Bambu. Then do it again with a second part while Bambu is still open.
 
-- [ ] **Step 2: Record the result in the findings file, section 5**
+- [x] **Step 2: Record the result in the findings file, section 5**
 
 One of:
 - "Opens in the running instance (as a new project prompt / into the current plate)". No code change.
@@ -1447,7 +1449,7 @@ function launchBambu(exe, file, { openExternal } = {}) {
 ```
 and in `main.js` call `launchBambu(exe, target, USE_URL_HANDLER ? { openExternal: shell.openExternal } : {})` with `const USE_URL_HANDLER = true;` near the top, with a comment citing the findings file. The smoke test's fake Bambu only exercises the exe path; keep the exe path as the test's route by making the constant overridable with `process.env.SUPPORT_STAFF_LAUNCH === 'exe'`, and set that env in the smoke test's `launchApp` call.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/research/2026-10-findings.md app/bambu.js app/main.js test/smoke.spec.js
@@ -1463,7 +1465,7 @@ git commit -m "research: Bambu already-running behavior; launch route chosen"
 **Files:**
 - Modify: `package.json`
 
-- [ ] **Step 1: Add the build block**
+- [x] **Step 1: Add the build block**
 
 In `package.json`, add at top level:
 ```json
@@ -1489,14 +1491,14 @@ In `package.json`, add at top level:
 ```
 `upstream-commit.json` is under `app/` so it ships. Electron Forge/Builder reads files inside the asar through Electron's patched `fs`, which is what the `app://` handler uses, so the unpacked vendor folder is belt and braces for worker and WASM loads.
 
-- [ ] **Step 2: Build**
+- [x] **Step 2: Build**
 
 ```bash
 npm run dist
 ```
 Expected: `dist/Support Staff Setup 0.1.0.exe` and `dist/Support Staff 0.1.0.exe` (portable). First run downloads the Electron binary for packaging; allow a few minutes.
 
-- [ ] **Step 3: Smoke-test the portable build**
+- [x] **Step 3: Smoke-test the portable build**
 
 ```bash
 set SUPPORT_STAFF_EXE=dist\Support Staff 0.1.0.exe
@@ -1504,7 +1506,7 @@ npx playwright test
 ```
 (PowerShell: `$env:SUPPORT_STAFF_EXE = 'dist\Support Staff 0.1.0.exe'`.) Expected: 2 passed. Then run the portable exe by hand and import `bracket.step` to prove the WASM worker loads from the package.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add package.json
@@ -1516,7 +1518,7 @@ git commit -m "build: electron-builder NSIS and portable targets, vendor unpacke
 **Files:**
 - Create: `.github/workflows/ci.yml`
 
-- [ ] **Step 1: Write it**
+- [x] **Step 1: Write it**
 
 ```yaml
 name: ci
@@ -1561,7 +1563,7 @@ jobs:
           path: dist/*.exe
 ```
 
-- [ ] **Step 2: Push and watch**
+- [x] **Step 2: Push and watch**
 
 ```bash
 git add .github/workflows/ci.yml
@@ -1577,7 +1579,7 @@ Expected: both jobs green. If the installed-smoke step fails while the dev smoke
 - Create: `scripts/bump-upstream.js`
 - Modify: `README.md`
 
-- [ ] **Step 1: bump script**
+- [x] **Step 1: bump script**
 
 ```js
 // Move upstream/ to its origin main, run our tests, and say what changed. The commit
@@ -1601,7 +1603,7 @@ execFileSync('npm', ['test'], { cwd: root, stdio: 'inherit', shell: true });
 console.log('\ntests passed. Review, then:  git add upstream && git commit -m "chore: bump upstream"');
 ```
 
-- [ ] **Step 2: README**
+- [x] **Step 2: README**
 
 Replace `README.md` with:
 ```markdown
@@ -1649,7 +1651,7 @@ app ships the license texts in `resources/licenses/`.
 ```
 Fill in the PR URL from Task 1.
 
-- [ ] **Step 3: Commit and push**
+- [x] **Step 3: Commit and push**
 
 ```bash
 git add scripts/bump-upstream.js README.md

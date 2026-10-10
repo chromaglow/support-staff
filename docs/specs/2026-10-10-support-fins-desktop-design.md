@@ -1,6 +1,35 @@
 # Support Fins Desktop: design
 
-Date: 2026-10-10. Status: approved in brainstorming, pending written review.
+Date: 2026-10-10. Status: approved and implemented (v1 built the same day; see `docs/HANDOFF.md`).
+
+## As built: where the implementation differs from this spec
+
+Recorded after the final review so the spec stays honest without rewriting the sections
+below. Each item is the decision as it stands.
+
+- **Bambu launch route.** Only the exe launch with the file argument is implemented. The
+  `bambustudio://` URL fallback in "Finding Bambu Studio" was researched and rejected: it is
+  Bambu's MakerWorld download hook and refuses local files; `--single-instance` drops the
+  file. Findings, section 5.
+- **`bambuExe` validation** additionally requires the basename `bambu-studio.exe` and a
+  drive-letter path (no UNC), and `showInFolder` only accepts paths inside the output folder.
+  Security hardening from the Task 8 review.
+- **CSP as built:** `default-src 'self'; img-src 'self' data: blob:; worker-src 'self' blob:;
+  style-src 'self' 'unsafe-inline'; connect-src 'self'; object-src 'none'; base-uri 'none';
+  script-src 'self' 'sha256-<hash of the inline import map, LF-normalized>'`. No remote origin.
+- **Shim injection** is done by the `app://` handler appending the stylesheet and module
+  script tags to the served `index.html`, not by the preload. Same effect, deterministic order.
+- **Smoke test** loads `sphere.stl` unrotated (4 fins, 18 tines) rather than lbracket at X 35,
+  verifies the 3MF through upstream's `unzip` plus object names in the model XML, and uses a
+  C# stand-in slicer compiled at test time by Windows' `csc.exe` (packaged Electron strips
+  `NODE_OPTIONS`, so a Node stand-in cannot record its arguments). Packaged runs target
+  `dist/win-unpacked/Support Staff.exe`, never the portable exe.
+- **CI** runs upstream's suite on Ubuntu with `DENO_NO_PACKAGE_JSON=1` (so Deno ignores this
+  repo's `package.json`), and the Windows job builds with `--publish never`.
+- **Renderer hang** shows our own Wait / Reload prompt (`win.on('unresponsive')`); Electron
+  has no default dialog on Windows.
+- **`bump-upstream`** runs upstream's suite (non-fatal on Windows) and then ours.
+- **Research item 2**, the real-parts run, is deferred to the next session.
 
 ## Goal
 

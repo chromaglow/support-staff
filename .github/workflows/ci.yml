@@ -1,0 +1,52 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  upstream-tests:
+    # Upstream's own suite, on Linux: on Windows one STEP test fails for a Deno
+    # CJS-detection reason unrelated to this project (docs/research/2026-10-findings.md §1).
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: true }
+      - uses: denoland/setup-deno@v2
+        with: { deno-version: v2.x }
+      - run: deno test -A
+        working-directory: upstream
+
+  desktop:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: true }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npm test
+      - run: npm run dist
+      - name: Install the NSIS build and smoke-test the installed app
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist -Filter '*Setup*.exe' | Select-Object -First 1
+          Start-Process -FilePath $setup.FullName -ArgumentList '/S' -Wait
+          $exe = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter 'Support Staff.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) { throw "installed Support Staff.exe not found under $env:LOCALAPPDATA\Programs" }
+          Write-Host "installed at $($exe.FullName)"
+          $env:SUPPORT_STAFF_EXE = $exe.FullName
+          npx playwright test
+      - name: App logs from the smoke runs (on failure)
+        if: failure()
+        shell: pwsh
+        run: Get-ChildItem "$env:TEMP\support-staff-*\userData\logs\*.log" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "== $($_.FullName)"; Get-Content $_.FullName }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: |
+            dist/*.exe
+            dist/*.blockmap
+          if-no-files-found: error

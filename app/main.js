@@ -48,6 +48,7 @@ function cspFor(html) {
   // The HTML parser normalizes CRLF to LF before hashing, so hash what the browser sees:
   // a Windows checkout of upstream (git autocrlf) is CRLF on disk.
   const text = m ? m[1].replace(/\r\n?/g, '\n') : '';
+  if (!m) log.warn('no inline import map found in index.html; script-src hash omitted');
   const hash = m ? ` 'sha256-${crypto.createHash('sha256').update(text).digest('base64')}'` : '';
   return `${CSP_BASE}; script-src 'self'${hash}`;
 }
@@ -58,7 +59,8 @@ const INJECT = '<link rel="stylesheet" href="/__desktop/desktop.css">\n'
 async function serve(request) {
   const url = new URL(request.url);
   if (url.host !== HOST) return new Response('not found', { status: 404 });
-  let rel = decodeURIComponent(url.pathname);
+  let rel;
+  try { rel = decodeURIComponent(url.pathname); } catch { return new Response('bad request', { status: 400 }); }
   if (rel === '/' || rel === '') rel = '/index.html';
   const desktop = rel.startsWith('/__desktop/');
   const base = desktop ? DESKTOP : WEB;
@@ -68,7 +70,7 @@ async function serve(request) {
   try { data = await fs.promises.readFile(file); } catch { return new Response('not found', { status: 404 }); }
   const headers = { 'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
                     'Cache-Control': 'no-store' };
-  if (rel === '/index.html') {
+  if (!desktop && file.toLowerCase() === path.join(WEB, 'index.html').toLowerCase()) {
     const html = data.toString('utf8').replace('</body>', INJECT);
     headers['Content-Security-Policy'] = cspFor(html);
     return new Response(html, { headers });
@@ -85,7 +87,7 @@ function openExternal(url) {
   if (/^https?:\/\//i.test(url)) {
     log.info(`open external ${url}`);
     shell.openExternal(url);
-  }
+  } else log.warn(`blocked external URL (not http/https): ${url}`);
 }
 
 /** Window bounds from settings, with anything non-numeric replaced by a default. */
@@ -97,6 +99,12 @@ function windowBounds(w = {}) {
 
 function createWindow() {
   const w = windowBounds(settings.window);
+  if (w.x !== undefined && w.y !== undefined) {
+    const { screen } = require('electron');
+    const onScreen = screen.getAllDisplays().some(({ workArea: a }) =>
+      w.x >= a.x && w.y >= a.y && w.x < a.x + a.width && w.y < a.y + a.height);
+    if (!onScreen) { log.warn(`saved window position ${w.x},${w.y} is off every display; centering`); w.x = w.y = undefined; }
+  }
   win = new BrowserWindow({
     width: w.width, height: w.height, x: w.x, y: w.y, show: false, title: 'Support Staff',
     webPreferences: {
@@ -124,6 +132,44 @@ function createWindow() {
   if (DEV) win.webContents.openDevTools({ mode: 'detach' });
 }
 
+function wireDownloads() {
+  session.defaultSession.on('will-download', (event, item) => {
+    item.setSaveDialogOptions({
+      title: 'Save export',
+      defaultPath: path.join(settings.outputFolder, item.getFilename()),
+      filters: [{ name: '3D model', extensions: ['3mf', 'stl'] }],
+    });
+    item.once('done', (e, state) => log.info(`export ${state}: ${item.getSavePath() || item.getFilename()}`));
+  });
+}
+
+function buildMenu() {
+  return Menu.buildFromTemplate([
+    { label: 'File', submenu: [
+      { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => win?.webContents.send('desktop:openSettings') },
+      { type: 'separator' },
+      { label: 'Open output folder', click: () => shell.openPath(settings.outputFolder) },
+      { label: 'Open log folder', click: () => shell.showItemInFolder(log.file) },
+      { type: 'separator' },
+      { role: 'quit' },
+    ] },
+    { label: 'View', submenu: [
+      { role: 'reload' }, { role: 'toggleDevTools' }, { type: 'separator' },
+      { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' },
+    ] },
+    { label: 'Help', submenu: [
+      { label: 'About Support Staff', click: () => dialog.showMessageBox(win, {
+        type: 'info', title: 'About Support Staff', message: `Support Staff ${app.getVersion()}`,
+        detail: `Electron ${process.versions.electron}\nSupport Fins upstream commit ${upstreamCommit()}\n\n`
+          + 'Support Fins is MIT licensed (github.com/gittrahan/support-fins). STEP import uses '
+          + 'occt-import-js (Open CASCADE), LGPL-2.1, vendored unmodified. License texts ship in '
+          + 'resources/licenses.',
+      }) },
+      { label: 'Support Fins on GitHub', click: () => shell.openExternal('https://github.com/gittrahan/support-fins') },
+    ] },
+  ]);
+}
+
 app.whenReady().then(() => {
   const userData = app.getPath('userData');
   log = createLogger(path.join(userData, 'logs', 'support-fins-desktop.log'));
@@ -131,6 +177,8 @@ app.whenReady().then(() => {
   settings = settingsMod.load(settingsFile, app.getPath('documents'));
   log.info(`start v${app.getVersion()} electron ${process.versions.electron} upstream ${upstreamCommit()} userData ${userData}`);
   protocol.handle('app', serve);
+  wireDownloads();
+  Menu.setApplicationMenu(buildMenu());
   createWindow();
 });
 

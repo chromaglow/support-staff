@@ -22,7 +22,12 @@ async function launchApp(settings) {
 test('the upstream app loads under app://', async () => {
   const { app } = await launchApp({});
   const page = await app.firstWindow();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
   await expect(page.locator('#export')).toBeVisible();
+  await expect(page.locator('#file')).toBeEnabled();
+  await page.waitForTimeout(2000);
+  expect(errors).toEqual([]);
   expect(page.url()).toBe('app://support-fins/');
   await app.close();
 });

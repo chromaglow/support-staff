@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "description": "Support Fins desktop: bake breakaway support fins into a 3D print and send it to Bambu Studio",
   "private": true,
+  "author": "chromaglow",
+  "license": "MIT",
   "main": "app/main.js",
   "scripts": {
     "stamp": "node scripts/stamp-upstream.js",
@@ -19,5 +21,46 @@
     "@playwright/test": "^1.64.0",
     "electron": "^44.7.0",
     "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.chromaglow.supportstaff",
+    "productName": "Support Staff",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "app/**/*",
+      "upstream/web/**/*",
+      "upstream/LICENSE",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "upstream/web/vendor/**"
+    ],
+    "extraResources": [
+      {
+        "from": "upstream/LICENSE",
+        "to": "licenses/support-fins-LICENSE.txt"
+      },
+      {
+        "from": "upstream/web/vendor/occt-import-js-0.0.23/license.occt-import-js.txt",
+        "to": "licenses/license.occt-import-js.txt"
+      },
+      {
+        "from": "upstream/web/vendor/occt-import-js-0.0.23/license.occt.txt",
+        "to": "licenses/license.occt.txt"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": false
+    }
   }
 }

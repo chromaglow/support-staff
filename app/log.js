@@ -5,7 +5,7 @@ const path = require('path');
 const MAX = 2 * 1024 * 1024;
 
 function createLogger(file) {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
+  try { fs.mkdirSync(path.dirname(file), { recursive: true }); } catch { /* unwritable: entries are dropped */ }
   function write(level, msg) {
     const line = `${new Date().toISOString()} ${level.toUpperCase()} ${msg}\n`;
     try {

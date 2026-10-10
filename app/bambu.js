@@ -12,17 +12,18 @@ const candidates = () => [
 /** `"C:\x\bambu-studio.exe" "%1"` or `C:\x\bambu-studio.exe %1` -> the exe path, else null. */
 function exeFromCommand(cmd) {
   if (typeof cmd !== 'string') return null;
-  const m = cmd.trim().match(/^"([^"]+\.exe)"|^(\S+\.exe)/i);
-  return m ? (m[1] || m[2]) : null;
+  const m = cmd.trim().match(/^"?(.+?\.exe)"?(?:\s|$)/i);
+  return m ? m[1] : null;
 }
 
 /** Default value of a registry key via `reg query`, or null. */
 function regQuery(key) {
   try {
-    const out = execFileSync('reg', ['query', key, '/ve'], { encoding: 'utf8', windowsHide: true });
+    const out = execFileSync('reg', ['query', key, '/ve'], { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
     const line = out.split(/\r?\n/).find((l) => /REG_(SZ|EXPAND_SZ)/.test(l));
     if (!line) return null;
-    return line.split(/REG_(?:SZ|EXPAND_SZ)\s+/)[1]?.trim() ?? null;
+    const v = line.split(/REG_(?:SZ|EXPAND_SZ)\s+/)[1]?.trim() ?? null;
+    return v === '(value not set)' ? null : v;
   } catch {
     return null;
   }
@@ -37,11 +38,16 @@ function detectBambu({ exists = fs.existsSync, query = regQuery, candidates: lis
   return null;
 }
 
-/** Open `file` in Bambu Studio, detached so closing this app leaves the slicer running. */
+/**
+ * Open `file` in Bambu Studio, detached so closing this app leaves the slicer running.
+ * Resolves with the pid once the process has started; rejects if it cannot start.
+ */
 function launchBambu(exe, file) {
-  const child = spawn(exe, [file], { detached: true, stdio: 'ignore' });
-  child.unref();
-  return child.pid;
+  return new Promise((resolve, reject) => {
+    const child = spawn(exe, [file], { detached: true, stdio: 'ignore' });
+    child.once('error', reject);
+    child.once('spawn', () => { child.unref(); resolve(child.pid); });
+  });
 }
 
 module.exports = { candidates, exeFromCommand, regQuery, detectBambu, launchBambu };

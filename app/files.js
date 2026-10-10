@@ -26,8 +26,13 @@ function uniquePath(dir, base, ext, exists = fs.existsSync) {
 async function writeAtomic(target, bytes) {
   await fs.promises.mkdir(path.dirname(target), { recursive: true });
   const tmp = `${target}.part`;
-  await fs.promises.writeFile(tmp, bytes);
-  await fs.promises.rename(tmp, target);
+  try {
+    await fs.promises.writeFile(tmp, bytes);
+    await fs.promises.rename(tmp, target);
+  } catch (e) {
+    await fs.promises.unlink(tmp).catch(() => {});
+    throw e;
+  }
 }
 
 module.exports = { safeBase, uniquePath, writeAtomic };

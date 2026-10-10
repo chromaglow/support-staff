@@ -1,11 +1,12 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { exeFromCommand, detectBambu } = require('../../app/bambu');
+const { exeFromCommand, detectBambu, launchBambu } = require('../../app/bambu');
 
 test('exeFromCommand handles quoted and bare commands', () => {
   assert.equal(exeFromCommand('"C:\\Program Files\\Bambu Studio\\bambu-studio.exe" "%1"'),
     'C:\\Program Files\\Bambu Studio\\bambu-studio.exe');
   assert.equal(exeFromCommand('C:\\BS\\bambu-studio.exe %1'), 'C:\\BS\\bambu-studio.exe');
+  assert.equal(exeFromCommand('C:\\Program Files\\Bambu Studio\\bambu-studio.exe %1'), 'C:\\Program Files\\Bambu Studio\\bambu-studio.exe');
   assert.equal(exeFromCommand(null), null);
   assert.equal(exeFromCommand('notepad %1'), null);
 });
@@ -19,4 +20,10 @@ test('detectBambu tries candidates, then App Paths, then the URL handler', () =>
   assert.equal(detectBambu({ candidates: [], exists: only('C:\\URL\\bambu-studio.exe'), query }), 'C:\\URL\\bambu-studio.exe');
   assert.equal(detectBambu({ candidates: [], exists: () => false, query }), null);
   assert.ok(calls.some((k) => k.includes('App Paths')) && calls.some((k) => k.includes('bambustudio\\shell')));
+});
+
+test('launchBambu resolves with a pid when the exe starts and rejects when it cannot', async () => {
+  const pid = await launchBambu(process.execPath, '--version');
+  assert.ok(Number.isInteger(pid) && pid > 0);
+  await assert.rejects(launchBambu('C:\\definitely\\missing\\bambu-studio.exe', 'x.3mf'), /ENOENT/);
 });

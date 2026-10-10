@@ -32,3 +32,11 @@ test('writeAtomic writes via a .part file and leaves no .part behind', async () 
   assert.deepEqual([...fs.readFileSync(target)], [1, 2, 3]);
   assert.ok(!fs.existsSync(`${target}.part`));
 });
+
+test('writeAtomic rejects when the target cannot be written and leaves no .part', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sfd-files-'));
+  fs.writeFileSync(path.join(dir, 'blocker'), 'x');
+  await assert.rejects(writeAtomic(path.join(dir, 'blocker', 'a.3mf'), new Uint8Array([1])));
+  const leftovers = fs.readdirSync(dir, { recursive: true }).filter((f) => String(f).endsWith('.part'));
+  assert.deepEqual(leftovers, []);
+});

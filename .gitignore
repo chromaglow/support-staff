@@ -2,5 +2,7 @@ node_modules/
 dist/
 out/
 *.log
+app/upstream-commit.json
+test-results/
 .DS_Store
 Thumbs.db

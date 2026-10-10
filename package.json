@@ -1,0 +1,23 @@
+{
+  "name": "support-staff",
+  "version": "0.1.0",
+  "description": "Support Fins desktop: bake breakaway support fins into a 3D print and send it to Bambu Studio",
+  "private": true,
+  "main": "app/main.js",
+  "scripts": {
+    "stamp": "node scripts/stamp-upstream.js",
+    "dev": "npm run stamp && electron . --dev",
+    "start": "npm run stamp && electron .",
+    "test:unit": "node --test \"test/unit/*.test.js\"",
+    "test:smoke": "npm run stamp && playwright test",
+    "test": "npm run test:unit && npm run test:smoke",
+    "test:upstream": "cd upstream && deno test -A tests/",
+    "dist": "npm run stamp && electron-builder --win",
+    "bump-upstream": "node scripts/bump-upstream.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3"
+  }
+}

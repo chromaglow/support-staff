@@ -11,10 +11,13 @@ const SPHERE = path.join(ROOT, 'upstream', 'prototype', 'stress', 'models', 'sph
 const RECORDER = path.join(ROOT, 'test', 'fixtures', 'fake-bambu', 'record-argv.cjs').split(path.sep).join('/');
 
 /**
- * Launch the app with its own temp userData. `settings` is written as settings.json;
- * `extraEnv` is merged into the app's environment. Set SUPPORT_STAFF_EXE to run a
- * packaged build instead of app/main.js. Returns the temp folder so a test can put
- * its output folder and fake-slicer files beside the userData.
+ * Launch the app with its own temp userData. `settings(tmp)` and `extraEnv(tmp)` are
+ * callbacks receiving the temp folder: the first returns what is written as
+ * settings.json, the second returns variables merged into the app's environment.
+ * Set SUPPORT_STAFF_EXE to run a packaged build instead of app/main.js; with a packaged
+ * build the recorder relies on the packaged Electron passing NODE_OPTIONS through to
+ * its child processes. Returns the temp folder so a test can put its output folder
+ * and fake-slicer files beside the userData.
  */
 async function launchApp(settings, extraEnv = () => ({})) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'support-staff-'));
@@ -44,6 +47,7 @@ test('the upstream app loads under app://', async () => {
 });
 
 test('load a part, add fins, send to Bambu', async () => {
+  test.skip(process.platform !== 'win32', 'stand-in slicer is a Windows exe and the env-name trick is Windows-only');
   // A stand-in slicer that passes the settings validator (basename bambu-studio.exe)
   // and, via NODE_OPTIONS, records the argument it was launched with.
   const { app, tmp } = await launchApp(
@@ -58,34 +62,39 @@ test('load a part, add fins, send to Bambu', async () => {
   );
   const outDir = path.join(tmp, 'out');
   const argvLog = path.join(tmp, 'fake-bambu-argv.txt');
-  const page = await app.firstWindow();
-  const errors = [];
-  page.on('pageerror', (e) => errors.push(String(e)));
-  await expect(page.locator('#sfd-send')).toBeDisabled();
+  try {
+    const page = await app.firstWindow();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await expect(page.locator('#sfd-send')).toBeDisabled();
 
-  await page.locator('#file').setInputFiles(SPHERE);
-  await expect(page.locator('#s-name')).toContainText('sphere', { timeout: 30_000 });
-  await page.locator('#fins-toggle').click();
-  await expect(page.locator('#s-fins')).toContainText(/\d+ support fin/, { timeout: 60_000 });
-  await expect(page.locator('#sfd-send')).toBeEnabled();
+    await page.locator('#file').setInputFiles(SPHERE);
+    await expect(page.locator('#s-name')).toContainText('sphere', { timeout: 30_000 });
+    await page.locator('#fins-toggle').click();
+    await expect(page.locator('#s-fins')).toContainText(/\d+ support fin/, { timeout: 60_000 });
+    await expect(page.locator('#sfd-send')).toBeEnabled();
 
-  await page.locator('#sfd-send').click();
-  await expect(page.locator('.sfd-toast')).toContainText('Saved sphere-fins.3mf, opened in Bambu Studio', { timeout: 30_000 });
+    await page.locator('#sfd-send').click();
+    await expect(page.locator('.sfd-toast')).toContainText('Saved sphere-fins.3mf, opened in Bambu Studio', { timeout: 30_000 });
 
-  const out = path.join(outDir, 'sphere-fins.3mf');
-  expect(fs.existsSync(out)).toBe(true);
-  expect(fs.existsSync(`${out}.part`)).toBe(false);
-  expect(fs.statSync(out).size).toBeGreaterThan(100_000);
+    const out = path.join(outDir, 'sphere-fins.3mf');
+    expect(fs.existsSync(out)).toBe(true);
+    expect(fs.existsSync(`${out}.part`)).toBe(false);
+    expect(fs.statSync(out).size).toBeGreaterThan(100_000);
 
-  // The file is what upstream's own Export 3MF writes: two objects and the app tag.
-  const { unzip } = await import(pathToFileURL(path.join(ROOT, 'upstream', 'web', 'zip.js')).href);
-  const xml = new TextDecoder().decode((await unzip(new Uint8Array(fs.readFileSync(out)))).get('3D/3dmodel.model'));
-  expect(xml).toContain('name="sphere"');
-  expect(xml).toContain('name="sphere supports"');
-  expect(xml).toContain('<metadata name="Application">Support Fins</metadata>');
+    // The file is what upstream's own Export 3MF writes: two objects and the app tag.
+    const { unzip } = await import(pathToFileURL(path.join(ROOT, 'upstream', 'web', 'zip.js')).href);
+    const xml = new TextDecoder().decode((await unzip(new Uint8Array(fs.readFileSync(out)))).get('3D/3dmodel.model'));
+    expect(xml).toContain('name="sphere"');
+    expect(xml).toContain('name="sphere supports"');
+    expect(xml).toContain('<metadata name="Application">Support Fins</metadata>');
 
-  // The stand-in slicer was launched with exactly the saved file as its argument.
-  await expect.poll(() => (fs.existsSync(argvLog) ? fs.readFileSync(argvLog, 'utf8').trim() : ''), { timeout: 15_000 }).toBe(out);
-  expect(errors).toEqual([]);
-  await app.close();
+    // The stand-in slicer was launched with exactly the saved file as its argument.
+    await expect.poll(() => (fs.existsSync(argvLog) ? fs.readFileSync(argvLog, 'utf8').trim() : ''), { timeout: 15_000 }).toBe(out);
+    expect(errors).toEqual([]);
+  } finally {
+    await app.close();
+    // The node.exe copy is ~90 MB; the rest of the temp folder is small and kept for debugging.
+    fs.rmSync(path.join(tmp, 'bambu-studio.exe'), { force: true });
+  }
 });

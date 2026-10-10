@@ -17,6 +17,11 @@ jobs:
         with: { deno-version: v2.x }
       - run: deno test -A
         working-directory: upstream
+        env:
+          # Deno walks up from upstream/ and finds this wrapper's package.json, then
+          # insists on a node_modules folder (which the Linux job never creates).
+          # Upstream runs standalone, so make Deno ignore the ancestor package.json.
+          DENO_NO_PACKAGE_JSON: 1
 
   desktop:
     runs-on: windows-latest

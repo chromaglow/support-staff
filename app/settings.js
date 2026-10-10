@@ -2,6 +2,8 @@
 const fs = require('fs');
 const path = require('path');
 
+const LOCAL_ABS = /^[A-Za-z]:\\/;   // drive-letter absolute path; rejects UNC (\\host\share) and relative
+
 function defaults(documentsDir) {
   return {
     outputFolder: path.join(documentsDir, 'Support Fins'),
@@ -23,14 +25,14 @@ function load(file, documentsDir) {
 function validate(partial) {
   const errors = [];
   if ('outputFolder' in partial) {
-    if (typeof partial.outputFolder !== 'string' || !path.isAbsolute(partial.outputFolder)) {
-      errors.push('outputFolder must be an absolute path');
+    if (typeof partial.outputFolder !== 'string' || !LOCAL_ABS.test(partial.outputFolder)) {
+      errors.push('outputFolder must be an absolute path on a local drive');
     }
   }
   if ('bambuExe' in partial && partial.bambuExe !== null) {
     const e = partial.bambuExe;
-    if (typeof e !== 'string' || !path.isAbsolute(e) || !/\.exe$/i.test(e) || !fs.existsSync(e)) {
-      errors.push('bambuExe must be an absolute path to an existing .exe, or null');
+    if (typeof e !== 'string' || !LOCAL_ABS.test(e) || path.basename(e).toLowerCase() !== 'bambu-studio.exe' || !fs.existsSync(e)) {
+      errors.push('bambuExe must be an absolute local path to an existing bambu-studio.exe, or null');
     }
   }
   return errors;
@@ -46,4 +48,4 @@ function save(file, current, partial) {
   return next;
 }
 
-module.exports = { defaults, load, validate, save };
+module.exports = { defaults, load, validate, save, LOCAL_ABS };

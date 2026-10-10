@@ -6,6 +6,8 @@ const path = require('path');
 const { defaults, load, validate, save } = require('../../app/settings');
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'sfd-settings-'));
+/** An empty file named like the real slicer: validate checks the name and existence, not the bytes. */
+const fakeBambu = () => { const p = path.join(tmp(), 'bambu-studio.exe'); fs.writeFileSync(p, ''); return p; };
 
 test('defaults put the output folder under Documents', () => {
   const d = defaults('C:\\Users\\me\\Documents');
@@ -31,20 +33,30 @@ test('load merges the file over defaults, including nested window', () => {
   assert.equal(s.window.height, 900);
 });
 
-test('validate rejects relative folders and non-exe or missing bambuExe', () => {
-  assert.deepEqual(validate({ outputFolder: 'relative' }), ['outputFolder must be an absolute path']);
+test('validate rejects relative folders and wrongly named or missing bambuExe', () => {
+  assert.deepEqual(validate({ outputFolder: 'relative' }), ['outputFolder must be an absolute path on a local drive']);
   assert.deepEqual(validate({ bambuExe: 'C:\\nope\\bambu-studio.exe' }),
-    ['bambuExe must be an absolute path to an existing .exe, or null']);
+    ['bambuExe must be an absolute local path to an existing bambu-studio.exe, or null']);
+  assert.deepEqual(validate({ bambuExe: process.execPath }),
+    ['bambuExe must be an absolute local path to an existing bambu-studio.exe, or null']);
   assert.deepEqual(validate({ bambuExe: null }), []);
-  assert.deepEqual(validate({ bambuExe: process.execPath }), []);
+});
+
+test('validate accepts an existing bambu-studio.exe on a local drive', () => {
+  assert.deepEqual(validate({ bambuExe: fakeBambu() }), []);
+});
+
+test('validate rejects UNC paths for the output folder', () => {
+  assert.deepEqual(validate({ outputFolder: '\\\\host\\share\\x' }), ['outputFolder must be an absolute path on a local drive']);
 });
 
 test('save writes the merged settings and returns them', () => {
   const dir = tmp();
   const file = path.join(dir, 'nested', 's.json');
+  const exe = fakeBambu();
   const cur = defaults(dir);
-  const next = save(file, cur, { bambuExe: process.execPath });
-  assert.equal(next.bambuExe, process.execPath);
-  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).bambuExe, process.execPath);
+  const next = save(file, cur, { bambuExe: exe });
+  assert.equal(next.bambuExe, exe);
+  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).bambuExe, exe);
   assert.throws(() => save(file, next, { outputFolder: 'nope' }), /absolute/);
 });

@@ -212,8 +212,9 @@ function wireIpc() {
     if (!partial || typeof partial !== 'object') throw new Error('bad settings');
     const allowed = {};
     for (const k of ['outputFolder', 'bambuExe']) if (k in partial) allowed[k] = partial[k];
+    if (Object.keys(allowed).length === 0) return { settings };
     saveSettings(allowed);
-    log.info(`settings saved: ${JSON.stringify(allowed)}`);
+    log.info(`settings saved: ${JSON.stringify(allowed).replace(/[\r\n]+/g, ' ')}`);
     return { settings };
   });
 
@@ -230,13 +231,14 @@ function wireIpc() {
   handle('desktop:detectBambu', () => ({ path: detectBambu() }));
 
   handle('desktop:showInFolder', (p) => {
-    if (typeof p !== 'string' || !path.isAbsolute(p)) throw new Error('bad path');
-    shell.showItemInFolder(p);
+    const root = path.resolve(settings.outputFolder);
+    if (typeof p !== 'string' || !settingsMod.LOCAL_ABS.test(p) || !path.resolve(p).toLowerCase().startsWith(root.toLowerCase() + path.sep)) throw new Error('bad path');
+    shell.showItemInFolder(path.resolve(p));
   });
 
   handle('desktop:log', (level, msg) => {
     const l = ['info', 'warn', 'error'].includes(level) ? level : 'info';
-    log[l](`renderer: ${String(msg).slice(0, 2000)}`);
+    log[l](`renderer: ${String(msg).replace(/[\r\n]+/g, ' ').slice(0, 2000)}`);
   });
 }
 
@@ -248,7 +250,10 @@ app.whenReady().then(() => {
   log.info(`start v${app.getVersion()} electron ${process.versions.electron} upstream ${upstreamCommit()} userData ${userData}`);
   if (!settings.bambuExe) {
     const found = detectBambu();
-    if (found) { saveSettings({ bambuExe: found }); log.info(`detected Bambu Studio at ${found}`); }
+    if (found) {
+      try { saveSettings({ bambuExe: found }); log.info(`detected Bambu Studio at ${found}`); }
+      catch (e) { log.error(`could not save detected Bambu Studio path: ${e.message}`); }
+    }
   }
   wireIpc();
   protocol.handle('app', serve);

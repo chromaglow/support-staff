@@ -34,7 +34,7 @@ for (const f of files) {
   try {
     const j = JSON.parse(line);
     const st = j.stats || {};
-    row = `| ${path.basename(f)} | ${st.braces ?? ''} | ${st.tines ?? ''} | ${st.unserved ?? ''} | ${st.floating ?? ''} | ${s} | ${j.report ?? ''} |`;
+    row = `| ${path.basename(f)} | ${(st.braces ?? 0) + (st.props ?? 0)} | ${st.tines ?? ''} | ${st.unserved ?? ''} | ${st.floating ?? ''} | ${s} | ${j.report ?? ''} |`;
   } catch {
     row = `| ${path.basename(f)} | | | | | ${s} | ERROR: ${(r.stderr || line).trim().split('\n').pop()} |`;
   }

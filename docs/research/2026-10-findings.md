@@ -1,6 +1,6 @@
 # Research findings, 2026-10
 
-**Verdict: GO (provisional).** Sections 3 and 5 are still pending; nothing found so far blocks the build.
+**Verdict: GO (provisional).** Section 3 is still pending; nothing found so far blocks the build.
 
 ## 1. Upstream tests on Windows
 - Before: `deno test --allow-read tests/` gave 189 passed / 75 failed / 1 ignored, all from `URL.pathname` (a reviewer measured 189 passed / 129 failed / 1 ignored with `deno test -A` at the parent commit). After the fix: `deno test -A tests/` gives 342 passed / 1 failed / 1 ignored. The one failure is `tests/step.test.js`: on Deno 2.7.6 Windows, `createRequire()` of the vendored UMD `occt-import-js.js` returns an empty ESM namespace (Deno CJS detection), unrelated to paths; it passes with `--unstable-detect-cjs`. Upstream main's own Ubuntu CI is green; PR #230's CI run was never triggered (action_required). `plugins/cli/tests/`: 10 passed. `plugins/shared/tests/`: 84 passed.
@@ -50,7 +50,42 @@ Reviewed 2026-10-10: 17 open issues (`gh issue list --repo gittrahan/support-fin
 - Others read and judged not to affect us: #223 (mesh errors in calibration-coupon 3MFs in ideaMaker), #121 (insufficient fins on a headset mount, same family as #157; its readout reports 299 overhang faces too small for a fin, under 12 mm², a different bucket from the engine's unserved count), #119 (feature: separate clearance controls), #115 (sway-brace clearance and tine bite), #104 (negative volumes turned solid in the user's slicer after adding fins; slicer-side, worth remembering if a user reports it), #65 (PrusaSlicer 3.0 plugin API limits), #57 (cross-bracing), #52 (diagonal/cantilever supports), #50 (curved bases), #48 (resin-style pin supports), #46 and #45 (cutout follow-ups), #25 (fin alignment, STEP input), #18 (missed supports, same family as #157), #8 (branching fins). These are feature requests or engine-quality reports that a desktop wrapper neither causes nor can fix.
 
 ## 5. Bambu Studio launch behavior
-(filled in Task 11)
+Bambu Studio 2.8.2.61 (`FileVersion` of `C:\Program Files\Bambu Studio\bambu-studio.exe`; `ProductVersion` is empty), Windows 11, this machine's `%APPDATA%\BambuStudio\BambuStudio.conf` has `"single_instance": false` (the default; Preferences > "Single instance"). Driven with Playwright Electron like `test/smoke.spec.js`, settings `bambuExe` pointing at the real exe, and the Bambu process table (`Get-Process bambu-studio`, plus a Win32 `EnumWindows` listing of its windows) polled every 5 s after each send.
+
+**Conclusion: exe launch with the file argument is sufficient; no code change.** Each send reliably lands the saved 3MF in Bambu Studio. With the "single instance" preference off, a send while Bambu is already running starts a *second full instance* for the new file rather than handing it to the running one; the running instance is left untouched. The two alternatives considered are worse (below), so the launch route stays `spawn(exe, [file], { detached: true })`.
+
+### Observed: two sends from the app (clean baseline, no Bambu running)
+Send 1: import `sphere.stl`, Add fins (4 fins, 18 tines), Send to Bambu. Toast: "Saved sphere-fins.3mf, opened in Bambu Studio".
+
+| after send 1 | processes | windows (class, title) |
+|---|---|---|
+| T+5 s | 1: pid 43676, started 10:43:02 | splash (`wxWindowNR`, no title) |
+| T+20 s | 1 | main window ` - BambuStudio` + `#32770` "Loading..." |
+| T+25 s | 1 | `sphere-fins - BambuStudio` |
+
+Send 2 while that instance was running: the plan's `cube.stl` reports "none possible" for fins unrotated (so do torus, tshape, portal); `lowledge.stl` gives 3 fins and was used instead. Toast: "Saved lowledge-fins.3mf, opened in Bambu Studio".
+
+| after send 2 | processes | windows |
+|---|---|---|
+| T+5 s | 2: pid 43676 (`sphere-fins - BambuStudio`), pid 43384 started 10:47:12 | 43384: splash |
+| T+25 s | 2 | 43384: `lowledge-fins - BambuStudio`; 43676 unchanged |
+
+App log (`userData\logs\support-fins-desktop.log`):
+```
+2026-10-10T17:46:38.275Z INFO launched C:\Program Files\Bambu Studio\bambu-studio.exe C:\Users\ezras\AppData\Local\Temp\support-staff-t11-Vj0Iyq\out\sphere-fins.3mf pid 43676
+2026-10-10T17:47:12.560Z INFO launched C:\Program Files\Bambu Studio\bambu-studio.exe C:\Users\ezras\AppData\Local\Temp\support-staff-t11-Vj0Iyq\out\lowledge-fins.3mf pid 43384
+```
+So: not one instance reused, no prompt in the running instance; a second `bambu-studio.exe` with its own window, the file opened as a project (Prepare tab, both objects selected; screenshot `bambu-second-instance-sphere.png` in the task scratchpad). Startup to a titled window took 25 s in the clean runs and up to 60 s in an earlier run where it also showed a `#32770` "Bambu Studio - Load 3mf" dialog for ~35 s (not reproduced in the clean runs; someone was using the desktop during the session, so dialog timing may not be Bambu's alone). The first time the app was driven, Bambu was already running with the user's own unsaved project (pid 16868, "* Untitled", started the day before): a send then behaved the same way, a new instance, and the user's instance was not touched by the exe route.
+
+Why: `src/slic3r/GUI/InstanceCheck.cpp` (`instance_check`) only looks for a running instance when `single_instance` is on in the app config or `--single-instance` is on the command line; otherwise it logs "Another instance not found or single-instance not set" and starts normally. With the preference on, it would find the window by class `wxWindowNR` + title containing "BambuStudio", send the arguments via `WM_COPYDATA`, and exit, and `OtherInstanceMessageHandler::handle_message` loads the paths into the running instance. That is the user's preference, not ours to set.
+
+### Alternatives tested and rejected
+- `bambustudio://open?file=<url-encoded local path>` (what Step 3 of the plan would have switched to; the handler in `HKCR\bambustudio\shell\open\command` is the same exe with `"%1"`). It is the MakerWorld download hook: `GUI_App::post_init` strips `file=`, URL-decodes it, and checks the host against a trusted-site table; a local path fails that and a public build shows the "This file is not from a trusted site, do you want to open it anyway?" message dialog (observed as `#32770` "Bambu Studio info"). Observed with a direct `Start-Process` of the URL: a new instance (pid 193488) started, showed that dialog, and ended as `Untitled - BambuStudio` with nothing loaded. It also coincided with the exit of the user's pre-existing instance (pid 16868) ~25 s after the launch: no crash dump, no event-log entry, and the source has no code that terminates another instance; the most likely explanation is that someone at the desk closed it, but this is unverified. Not usable for local files.
+- `bambu-studio.exe --single-instance <file>` (the flag `instance_check` honors regardless of the preference). Observed with the `sphere-fins` instance running: the new process exited within 5 s and the running instance was unchanged after 60 s (title, window position, plate thumbnail; it was not maximized or brought to the foreground, which `EnumWindowsProc` does on a hash match). The file was silently dropped. Not usable.
+
+### Also confirmed in passing
+- The detached spawn survives the app quitting: after `app.quit()` from inside the app, the Bambu instance (pid 195560) was still running. Playwright's `app.close()` kills the Electron process tree (`taskkill /T`), so under the smoke test harness Bambu would go with it; the fake slicer there exits on its own, so the test is unaffected.
+- Per-send cost of the current route: a second Bambu window and ~25 s of startup for every send while Bambu is open. If that bothers users, the fix is on their side (Preferences > Single instance), and it could be documented in the user guide.
 
 ## 6. CSP adjustments
 No directive was changed; the policy is exactly the one in the plan (`default-src 'self'`, no remote origin, `script-src 'self'` plus a sha256 hash for the inline import map).

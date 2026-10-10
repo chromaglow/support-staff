@@ -148,7 +148,7 @@ function buildMenu() {
     { label: 'File', submenu: [
       { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => win?.webContents.send('desktop:openSettings') },
       { type: 'separator' },
-      { label: 'Open output folder', click: () => shell.openPath(settings.outputFolder) },
+      { label: 'Open output folder', click: () => { try { fs.mkdirSync(settings.outputFolder, { recursive: true }); } catch (e) { log.error(`output folder: ${e.message}`); } shell.openPath(settings.outputFolder).then((err) => { if (err) log.error(`open output folder: ${err}`); }); } },
       { label: 'Open log folder', click: () => shell.showItemInFolder(log.file) },
       { type: 'separator' },
       { role: 'quit' },
@@ -170,12 +170,87 @@ function buildMenu() {
   ]);
 }
 
+const ok = (data) => ({ ok: true, ...data });
+function fail(e) {
+  const msg = String(e?.message ?? e);
+  log.error(`${msg}${e?.stack ? `\n${e.stack}` : ''}`);
+  return { ok: false, error: msg };
+}
+// Handlers never throw across the bridge: the renderer always gets { ok, ... }.
+function handle(channel, fn) {
+  ipcMain.handle(channel, async (event, ...args) => {
+    try { return ok((await fn(...args)) ?? {}); } catch (e) { return fail(e); }
+  });
+}
+
+function wireIpc() {
+  handle('desktop:saveAndOpen', async (bytes, baseName) => {
+    if (!(bytes instanceof Uint8Array) || bytes.length === 0) throw new Error('no file data');
+    if (bytes.length > 512 * 1024 * 1024) throw new Error('file is over 512 MB');
+    const target = uniquePath(settings.outputFolder, `${safeBase(baseName)}-fins`, '.3mf');
+    try { await writeAtomic(target, bytes); } catch (e) { throw new Error(`could not write ${target}: ${e.message}`); }
+    log.info(`saved ${target} (${bytes.length} bytes)`);
+    const exe = settings.bambuExe;
+    let opened = false;
+    if (exe && fs.existsSync(exe)) {
+      try {
+        const pid = await launchBambu(exe, target);
+        log.info(`launched ${exe} ${target} pid ${pid}`);
+        opened = true;
+      } catch (e) {
+        log.error(`Bambu Studio failed to start: ${exe}: ${e.message}`);
+      }
+    } else {
+      log.warn(`Bambu Studio not launched: ${exe ? `missing at ${exe}` : 'path not set'}`);
+    }
+    return { path: target, opened };
+  });
+
+  handle('desktop:getSettings', () => ({ settings, upstreamCommit: upstreamCommit(), logFile: log.file }));
+
+  handle('desktop:setSettings', (partial) => {
+    if (!partial || typeof partial !== 'object') throw new Error('bad settings');
+    const allowed = {};
+    for (const k of ['outputFolder', 'bambuExe']) if (k in partial) allowed[k] = partial[k];
+    saveSettings(allowed);
+    log.info(`settings saved: ${JSON.stringify(allowed)}`);
+    return { settings };
+  });
+
+  handle('desktop:browseFolder', async () => {
+    const r = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'createDirectory'], defaultPath: settings.outputFolder });
+    return { path: r.canceled ? null : r.filePaths[0] };
+  });
+
+  handle('desktop:browseBambuExe', async () => {
+    const r = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: 'Bambu Studio', extensions: ['exe'] }] });
+    return { path: r.canceled ? null : r.filePaths[0] };
+  });
+
+  handle('desktop:detectBambu', () => ({ path: detectBambu() }));
+
+  handle('desktop:showInFolder', (p) => {
+    if (typeof p !== 'string' || !path.isAbsolute(p)) throw new Error('bad path');
+    shell.showItemInFolder(p);
+  });
+
+  handle('desktop:log', (level, msg) => {
+    const l = ['info', 'warn', 'error'].includes(level) ? level : 'info';
+    log[l](`renderer: ${String(msg).slice(0, 2000)}`);
+  });
+}
+
 app.whenReady().then(() => {
   const userData = app.getPath('userData');
   log = createLogger(path.join(userData, 'logs', 'support-fins-desktop.log'));
   settingsFile = path.join(userData, 'settings.json');
   settings = settingsMod.load(settingsFile, app.getPath('documents'));
   log.info(`start v${app.getVersion()} electron ${process.versions.electron} upstream ${upstreamCommit()} userData ${userData}`);
+  if (!settings.bambuExe) {
+    const found = detectBambu();
+    if (found) { saveSettings({ bambuExe: found }); log.info(`detected Bambu Studio at ${found}`); }
+  }
+  wireIpc();
   protocol.handle('app', serve);
   wireDownloads();
   Menu.setApplicationMenu(buildMenu());

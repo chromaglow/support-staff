@@ -43,7 +43,11 @@ no real parts supplied; stress models only. The user will supply a folder later;
 Slicer check: pending.
 
 ## 4. Open upstream issues that affect daily use
-(filled in Task 3)
+Reviewed 2026-10-10: 17 open issues (`gh issue list --repo gittrahan/support-fins --state open`).
+
+- #215 slow generation on huge models: the stress models are too small to reproduce it; the slowest survey run was 0.4 s (plate.stl, ramp.stl), and the largest file, torus.stl (102 KB), took 0.2 s, Node startup and 3MF write included. The thread (opened 2026-10-08 by the maintainer, no comments yet) reports slowness from about 300 mm parts up to a commenter's 5 ft model and says the time went to 3D rendering in the browser, not the fin calculation. The CLI we wrap does no rendering, so this should not affect us; to be confirmed on the real parts in section 3.
+- #157 fins print as strings: a user on a well-tuned QIDI Plus4 (dry PETG, Orca) got a ball of string in three orientations; bed-attached fins printed fine, but the tool left a 20+ mm tube wall unsupported and placed internal fins on near-vertical walls whose attachment failed and blobbed. Follow-up with a simpler STL repeats that too few fins are generated and the fin-covered overhangs still sag. Maintainer is reproducing; no fix yet. An engine-quality issue that we inherit as-is, which is why the slicer check in section 3 stays on the list.
+- Others read and judged not to affect us: #223 (mesh errors in calibration-coupon 3MFs in ideaMaker), #121 (insufficient fins on a headset mount, same family as #157, 299 unserved overhangs), #119 (feature: separate clearance controls), #115 (sway-brace clearance and tine bite), #104 (negative volumes turned solid in the user's slicer after adding fins; slicer-side, worth remembering if a user reports it), #65 (PrusaSlicer 3.0 plugin API limits), #57 (cross-bracing), #52 (diagonal/cantilever supports), #50 (curved bases), #48 (resin-style pin supports), #46 and #45 (cutout follow-ups), #25 (fin alignment, STEP input), #18 (missed supports, same family as #157), #8 (branching fins). These are feature requests or engine-quality reports that a desktop wrapper neither causes nor can fix.
 
 ## 5. Bambu Studio launch behavior
 (filled in Task 11)

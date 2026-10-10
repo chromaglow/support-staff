@@ -13,7 +13,7 @@
     "test:unit": "node --test \"test/unit/*.test.js\"",
     "test:smoke": "npm run stamp && playwright test",
     "test": "npm run test:unit && npm run test:smoke",
-    "test:upstream": "cd upstream && deno test -A tests/",
+    "test:upstream": "node scripts/test-upstream.js",
     "dist": "npm run stamp && electron-builder --win",
     "bump-upstream": "node scripts/bump-upstream.js"
   },

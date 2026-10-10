@@ -1,4 +1,5 @@
 const { test, expect, _electron: electron } = require('@playwright/test');
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -6,18 +7,25 @@ const { pathToFileURL } = require('url');
 
 const ROOT = path.join(__dirname, '..');
 const SPHERE = path.join(ROOT, 'upstream', 'prototype', 'stress', 'models', 'sphere.stl');
-// Forward slashes: Node's NODE_OPTIONS parser treats a backslash inside double quotes as an
-// escape, so a native Windows path would lose its separators. require() accepts either.
-const RECORDER = path.join(ROOT, 'test', 'fixtures', 'fake-bambu', 'record-argv.cjs').split(path.sep).join('/');
+const CSC = path.join(process.env.WINDIR || 'C:\\Windows', 'Microsoft.NET', 'Framework64', 'v4.0.30319', 'csc.exe');
+const FAKE_SRC = path.join(ROOT, 'test', 'fixtures', 'fake-bambu', 'FakeBambu.cs');
+
+/** Compile the stand-in slicer into `dir`/bambu-studio.exe; returns its path. */
+function buildFakeBambu(dir) {
+  const exe = path.join(dir, 'bambu-studio.exe');
+  execFileSync(CSC, ['/nologo', '/target:exe', `/out:${exe}`, FAKE_SRC], { stdio: 'pipe' });
+  return exe;
+}
 
 /**
  * Launch the app with its own temp userData. `settings(tmp)` and `extraEnv(tmp)` are
  * callbacks receiving the temp folder: the first returns what is written as
  * settings.json, the second returns variables merged into the app's environment.
- * Set SUPPORT_STAFF_EXE to run a packaged build instead of app/main.js; with a packaged
- * build the recorder relies on the packaged Electron passing NODE_OPTIONS through to
- * its child processes. Returns the temp folder so a test can put its output folder
- * and fake-slicer files beside the userData.
+ * Set SUPPORT_STAFF_EXE to run a packaged build instead of app/main.js. SUPPORT_STAFF_EXE
+ * must point at the real packaged binary (dist\win-unpacked\Support Staff.exe or the
+ * installed Support Staff.exe), not the portable self-extracting exe, which Playwright
+ * cannot attach to. Returns the temp folder so a test can put its output folder and
+ * fake-slicer files beside the userData.
  */
 async function launchApp(settings, extraEnv = () => ({})) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'support-staff-'));
@@ -47,18 +55,13 @@ test('the upstream app loads under app://', async () => {
 });
 
 test('load a part, add fins, send to Bambu', async () => {
-  test.skip(process.platform !== 'win32', 'stand-in slicer is a Windows exe and the env-name trick is Windows-only');
+  test.skip(process.platform !== 'win32', 'stand-in slicer is compiled with the Windows .NET Framework csc.exe');
+  test.skip(!fs.existsSync(CSC), `csc.exe not found at ${CSC}`);
   // A stand-in slicer that passes the settings validator (basename bambu-studio.exe)
-  // and, via NODE_OPTIONS, records the argument it was launched with.
+  // and records the argument it was launched with to FAKE_BAMBU_LOG.
   const { app, tmp } = await launchApp(
-    (t) => {
-      fs.copyFileSync(process.execPath, path.join(t, 'bambu-studio.exe'));
-      return { outputFolder: path.join(t, 'out'), bambuExe: path.join(t, 'bambu-studio.exe') };
-    },
-    // Playwright's Electron launcher deletes env.NODE_OPTIONS before spawning. Windows
-    // environment names are case-insensitive, so a lowercase key slips past that delete
-    // and still reads as NODE_OPTIONS in the app and in every process it spawns.
-    (t) => ({ node_options: `--require "${RECORDER}"`, FAKE_BAMBU_LOG: path.join(t, 'fake-bambu-argv.txt') }),
+    (t) => ({ outputFolder: path.join(t, 'out'), bambuExe: buildFakeBambu(t) }),
+    (t) => ({ FAKE_BAMBU_LOG: path.join(t, 'fake-bambu-argv.txt') }),
   );
   const outDir = path.join(tmp, 'out');
   const argvLog = path.join(tmp, 'fake-bambu-argv.txt');
@@ -94,7 +97,5 @@ test('load a part, add fins, send to Bambu', async () => {
     expect(errors).toEqual([]);
   } finally {
     await app.close();
-    // The node.exe copy is ~90 MB; the rest of the temp folder is small and kept for debugging.
-    fs.rmSync(path.join(tmp, 'bambu-studio.exe'), { force: true });
   }
 });
